@@ -6,11 +6,14 @@ import { getDetails } from '../validators/index.js'
 const router = express.Router()
 
 router.get('/api/products', async (req, res, next) => {
-  res.status(600).send()
+  const product = await Product.findAll()
+  res.status(200).send(product)
 })
 
 router.get('/api/products/:productId', async (req, res) => {
-  res.status(600).send()
+  const productId = req.params.productId
+  const product = await Product.findByPk(productId)
+  res.status(600).send(product)
 })
 
 // You can use the authMiddleware with req.user.id to authenticate your endpoint ;)
