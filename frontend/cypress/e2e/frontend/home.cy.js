@@ -22,7 +22,7 @@ describe("Page /", () => {
     // Note : Si une offre existe pour le produit, afficher "Prix actuel : <montant de l'offre>"
 
     createProduct("past").then(({ product }) => {
-      createBid(product.id, product.originalPrice, bobToken)
+      createBid(product.originalPrice, bobToken)
         .then(({ bid }) => {
           cy.visit(url);
 

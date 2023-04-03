@@ -23,18 +23,20 @@ router.delete('/api/bids/:bidId', authMiddleware, async (req, res) => {
 router.post('/api/products/:productId/bids', authMiddleware, async (req, res) => {
   try {
     const { price } = req.body
-    if (!price) {
-      return res.status(400).json({ error: 'Invalid or missing fields', details: 'Missing price field' })
-    }
     if (!req.user.id && !req.user.admin) {
       return res.status(401).json({ message: 'Action non autorisée' })
     }
-    const bid = await Bid.create({
-      productId: req.params.productId,
-      price,
-      date: Date.now(),
-      bidderId: req.user.id
-    })
+    let bid
+    try {
+      bid = await Bid.create({
+        productId: req.params.productId,
+        price,
+        date: Date.now(),
+        bidderId: req.user.id
+      })
+    } catch (er) {
+      return res.status(400).json({ error: 'Invalid or missing fields', details: 'Missing price field' })
+    }
     res.status(201).json(bid)
   } catch (err) {
     res.status(401).json({ message: err.message })

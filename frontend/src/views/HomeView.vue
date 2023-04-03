@@ -3,11 +3,12 @@ import { ref, computed } from "vue";
 
 const loading = ref(false);
 const error = ref(false);
-
+const productsList = ref([]);
 async function fetchProducts() {
   loading.value = true;
   error.value = false;
-
+  const res = await fetch('http://localhost:3000/api/products/');
+  productsList.value = await res.json();
   try {
   } catch (e) {
     error.value = true;
@@ -15,7 +16,26 @@ async function fetchProducts() {
     loading.value = false;
   }
 }
-
+function getEndDateDisplay(date) {
+  const endDate = new Date(date);
+  if (endDate < new Date()) {
+    return "la vente est Terminé";
+  }
+  const options = {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    timeZone: "Europe/Paris",
+  };
+  return endDate.toLocaleDateString("fr-FR", options);
+}
+  function getMaxBidPrice(bids) {
+  const prices = bids.map(bid => typeof bid.price === 'number' && isFinite(bid.price) ? bid.price : 0); // Exclure les prix non numériques ou Infinity
+  const maxPrice = Math.max(...prices);
+  return isFinite(maxPrice) ? maxPrice.toFixed(2) : 0; // Vérifier si le prix maximum est fini et renvoyer 0 si ce n'est pas le cas
+}
 fetchProducts();
 </script>
 
@@ -72,11 +92,11 @@ fetchProducts();
       Une erreur est survenue lors du chargement des produits.
     </div>
     <div class="row">
-      <div class="col-md-4 mb-4" v-for="i in 10" data-test-product :key="i">
+      <div class="col-md-4 mb-4" v-for="product in productsList" data-test-product :key="product">
         <div class="card">
-          <RouterLink :to="{ name: 'Product', params: { productId: 'TODO' } }">
+          <RouterLink :to="{ name: 'Product', params: { productId: product.id } }">
             <img
-              src="https://picsum.photos/id/403/512/512"
+                :src="product.pictureUrl"
               data-test-product-picture
               class="card-img-top"
             />
@@ -85,13 +105,13 @@ fetchProducts();
             <h5 class="card-title">
               <RouterLink
                 data-test-product-name
-                :to="{ name: 'Product', params: { productId: 'TODO' } }"
+                :to="{ name: 'Product', params: { productId: product.id } }"
               >
-                Machine à écrire
+                {{ product.name }}
               </RouterLink>
             </h5>
             <p class="card-text" data-test-product-description>
-              Machine à écrire vintage en parfait état de fonctionnement
+              {{ product.description }}
             </p>
             <p class="card-text">
               Vendeur :
@@ -99,13 +119,13 @@ fetchProducts();
                 data-test-product-seller
                 :to="{ name: 'User', params: { userId: 'TODO' } }"
               >
-                alice
+                {{ product.seller.username }}
               </RouterLink>
             </p>
             <p class="card-text" data-test-product-date>
-              En cours jusqu'au 05/04/2026
+              En cours jusqu'au {{ getEndDateDisplay(product.endDate) }}
             </p>
-            <p class="card-text" data-test-product-price>Prix actuel : 42 €</p>
+            <p class="card-text" data-test-product-price>Prix actuel : {{ getMaxBidPrice(product.bids) }} €</p>
           </div>
         </div>
       </div>
