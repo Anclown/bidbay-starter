@@ -6,14 +6,48 @@ import { getDetails } from '../validators/index.js'
 const router = express.Router()
 
 router.get('/api/products', async (req, res, next) => {
-  const product = await Product.findAll()
-  res.status(200).send(product)
+  const product = await Product.findAll({
+    include: [{
+      model: User,
+      as: 'seller',
+      attributes: ['id', 'username']
+    }, {
+      model: Bid,
+      as: 'bids',
+      attributes: ['id', 'price', 'productId', 'date']
+    }]
+  })
+  if (product === null) {
+    res.status(404).send('Erreur : produit non trouvé')
+  } else {
+    res.status(200).send(product)
+  }
 })
 
 router.get('/api/products/:productId', async (req, res) => {
   const productId = req.params.productId
-  const product = await Product.findByPk(productId)
-  res.status(600).send(product)
+  const product = await Product.findOne({
+    include: [{
+      model: User,
+      as: 'seller',
+      attributes: ['id', 'username']
+    }, {
+      model: Bid,
+      as: 'bids',
+      attributes: ['id', 'price'],
+      include: [{
+        model: User,
+        as: 'bidder',
+        attributes: ['id', 'username']
+      }]
+    }],
+    where: { id: productId }
+  })
+  if (product === null) {
+    res.status(404).send('Erreur : produit non trouvé')
+  } else {
+    res.status(200).send(product)
+  }
 })
 
 // You can use the authMiddleware with req.user.id to authenticate your endpoint ;)
@@ -22,12 +56,45 @@ router.post('/api/products', (req, res) => {
   res.status(600).send()
 })
 
-router.put('/api/products/:productId', async (req, res) => {
-  res.status(600).send()
+router.put('/api/products/:productId', authMiddleware, async (req, res) => {
+  try {
+    const productId = req.params.productId // Récupération de l'ID du produit depuis les paramètres de la requête
+    const productToUpdate = await Product.findByPk(productId) // Recherche du produit dans la base de données
+    if (!productToUpdate) {
+      return res.status(404).json({ message: 'Produit non trouvé' })
+    }
+    if (productToUpdate.sellerId !== req.user.id && !req.user.admin) {
+      return res.status(403).json({ message: 'Action non autorisée' })
+    }
+    productToUpdate.name = req.body.name
+    productToUpdate.description = req.body.description
+    productToUpdate.price = req.body.price
+    productToUpdate.category = req.body.category
+    productToUpdate.originalPrice = req.body.originalPrice
+    productToUpdate.pictureUrl = req.body.pictureUrl
+    productToUpdate.endDate = req.body.endDate
+    const updatedProduct = await productToUpdate.save()
+    res.status(200).json(updatedProduct)
+  } catch (err) {
+    res.status(403).json({ message: err.message })
+  }
 })
 
-router.delete('/api/products/:productId', async (req, res) => {
-  res.status(600).send()
+router.delete('/api/products/:productId', authMiddleware, async (req, res) => {
+  try {
+    const productId = req.params.productId // Récupération de l'ID du produit depuis les paramètres de la requête
+    const productToDestroy = await Product.findByPk(productId) // Recherche du produit dans la base de données
+    if (!productToDestroy) {
+      return res.status(404).json({ message: 'Produit non trouvé' })
+    }
+    if (productToDestroy.sellerId !== req.user.id && !req.user.admin) {
+      return res.status(403).json({ message: 'Action non autorisée' })
+    }
+    await productToDestroy.destroy()
+    res.status(204).json()
+  } catch (err) {
+    res.status(403).json({ message: err.message })
+  }
 })
 
 export default router
