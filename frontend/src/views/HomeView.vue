@@ -5,7 +5,7 @@ const loading = ref(false);
 const error = ref(false);
 const productsList = ref([]);
 const filter = ref("");
-const sort = ref("name");
+const sort = ref("nom");
 
 async function fetchProducts() {
   loading.value = true;
@@ -37,15 +37,20 @@ function getEndDateDisplay(date) {
 }
 
 fetchProducts();
+
 const filteredProductsList = computed(() => {
   const list = productsList.value;
-  if (filter.value === "") {
-    return list;
-  } else if(filter.value !=="") {
+  if (sort.value === "nom") {
+    list.sort((a, b) => a.name.localeCompare(b.name));
+  } else if (sort.value === "prix") {
+    list.sort((a, b) => a.originalPrice - b.originalPrice);
+  }
+  if (filter.value !== "") {
     return list.filter((product) =>
       product.name.toLowerCase().includes(filter.value.toLowerCase())
     );
   }
+  return list;
 });
 </script>
 
@@ -76,14 +81,19 @@ const filteredProductsList = computed(() => {
             aria-expanded="false"
             data-test-sorter
           >
-            Trier par nom
+            Trier par {{ sort }}
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
             <li>
-              <a class="dropdown-item" href="#" @click="sort = 'name'"> Nom </a>
+              <a class="dropdown-item" href="#" @click="sort = 'nom'"> Nom </a>
             </li>
             <li>
-              <a class="dropdown-item" href="#" data-test-sorter-price @click="sort = 'price'">
+              <a
+                class="dropdown-item"
+                href="#"
+                data-test-sorter-price
+                @click="sort = 'prix'"
+              >
                 Prix
               </a>
             </li>
