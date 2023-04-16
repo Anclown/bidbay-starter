@@ -25,9 +25,7 @@ watch(token, () => {
 const isAuthenticated = computed(() => userData.value !== null);
 
 const isAdmin = computed(() => userData.value !== null && userData.value.admin);
-
 const username = computed(() => userData.value.username);
-
 export function useAuthStore() {
   return {
     userData,

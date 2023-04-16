@@ -25,6 +25,25 @@ router.get('/api/products', async (req, res, next) => {
   }
 })
 
+router.get('/api/products/:userId', async (req, res, next) => {
+  const products = await Product.findAll({
+    where: { sellerId: req.params.userId },
+    include: [{
+      model: User,
+      as: 'seller',
+      attributes: ['id', 'username']
+    }, {
+      model: Bid,
+      as: 'bids',
+      attributes: ['id', 'price', 'productId', 'date']
+    }]
+  })
+  if (products.length === 0) {
+    res.status(404).send('Erreur : produits non trouvés')
+  } else {
+    res.status(200).send(products)
+  }
+})
 router.get('/api/products/:productId', async (req, res) => {
   const productId = req.params.productId
   const product = await Product.findOne({

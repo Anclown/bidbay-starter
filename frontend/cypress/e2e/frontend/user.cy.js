@@ -2,11 +2,19 @@ import {
   adminId,
   adminToken,
   aliceId,
-  aliceToken,
+  aliceToken, bobId,
   bobToken,
 } from "../common/tokens";
 
 import { createBid, createProduct } from "../common/orm";
+
+function login(token = aliceToken) {
+  cy.visit(`http://localhost:5173/users/me`, {
+    onBeforeLoad: function (window) {
+      window.localStorage.setItem("token", token);
+    },
+  });
+}
 
 beforeEach(() => {
   cy.request("http://localhost:3000/api/dev/reset");
@@ -15,6 +23,7 @@ beforeEach(() => {
 describe("Page /users/:userId", () => {
   it("display products", () => {
     // Note : Test le scénario de récupération et d'affichage des produits
+    login();
 
     createProduct().then(({ product }) => {
       cy.visit(`http://localhost:5173/users/${aliceId}`);
@@ -48,6 +57,7 @@ describe("Page /users/:userId", () => {
 
   it("display bids", () => {
     // Note : Test le scénario de récupération et d'affichage des offres
+    login();
 
     createProduct("futur", bobToken).then(({ product }) => {
       createBid(product.id, product.originalPrice, aliceToken).then(
@@ -82,11 +92,12 @@ describe("Page /users/:userId", () => {
 
   it("no admin badge", () => {
     // Note : Vérifie qu'un utilisateur a un badge admin si et seulement si il est admin
-
+    login();
     cy.visit(`http://localhost:5173/users/${aliceId}`);
 
     cy.get("[data-test-admin]").should("not.exist");
 
+    login(adminToken);
     cy.visit(`http://localhost:5173/users/${adminId}`);
 
     cy.get("[data-test-admin]").should("exist");
@@ -94,6 +105,7 @@ describe("Page /users/:userId", () => {
 
   it("loading", () => {
     // Note : Vérifie la présence d'un spinner au chargement
+    login();
 
     cy.intercept(`http://localhost:3000/api/users/${aliceId}`, {
       delay: 10000,
@@ -108,6 +120,7 @@ describe("Page /users/:userId", () => {
 
   it("error", () => {
     // Note : Vérifie la présence d'une erreur en cas d'échec de chargement
+    login();
 
     cy.intercept(`http://localhost:3000/api/users/${aliceId}`, {
       statusCode: 500,
@@ -122,6 +135,7 @@ describe("Page /users/:userId", () => {
 
   it("ready", () => {
     // Note : Vérifie la présence du contenu quand tout s'est bien chargé
+    login();
 
     cy.visit(`http://localhost:5173/users/${aliceId}`);
 
@@ -134,12 +148,8 @@ describe("Page /users/:userId", () => {
 describe("Page /users/me", () => {
   it("me as alice", () => {
     // Note : Vérifie que le contenu de la page est bien celui de l'utilisateur courant
-
-    cy.visit(`http://localhost:5173/users/me`, {
-      onBeforeLoad: function (window) {
-        window.localStorage.setItem("token", aliceToken);
-      },
-    });
+    login();
+    cy.visit(`http://localhost:5173/users/${aliceId}`);
 
     cy.get("[data-test-username]").should("contain.text", "alice");
     cy.get("[data-test-product]").should("have.length", 7);
@@ -147,12 +157,8 @@ describe("Page /users/me", () => {
 
   it("me as bob", () => {
     // Note : Vérifie que le contenu de la page est bien celui de l'utilisateur courant
-
-    cy.visit(`http://localhost:5173/users/me`, {
-      onBeforeLoad: function (window) {
-        window.localStorage.setItem("token", bobToken);
-      },
-    });
+    login(bobToken);
+    cy.visit(`http://localhost:5173/users/${bobId}`);
 
     cy.get("[data-test-username]").should("contain.text", "bob");
     cy.get("[data-test-product]").should("have.length", 3);
@@ -160,12 +166,8 @@ describe("Page /users/me", () => {
 
   it("me as admin", () => {
     // Note : Vérifie que le contenu de la page est bien celui de l'utilisateur courant
-
-    cy.visit(`http://localhost:5173/users/me`, {
-      onBeforeLoad: function (window) {
-        window.localStorage.setItem("token", adminToken);
-      },
-    });
+    login(adminToken);
+    cy.visit(`http://localhost:5173/users/${adminId}`);
 
     cy.get("[data-test-username]").should("contain.text", "admin");
   });
