@@ -15,7 +15,6 @@ let productData = {
   pictureUrl: "",
   endDate: "",
 };
-
 async function submitForm() {
   errorMessage.value = "";
   isSubmitting.value = true;

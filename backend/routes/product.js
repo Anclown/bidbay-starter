@@ -6,6 +6,33 @@ import product from "../orm/models/product.js";
 
 const router = express.Router()
 
+
+
+router.get('/api/products/:productId', async (req, res) => {
+  const productId = req.params.productId
+  const product = await Product.findOne({
+    include: [{
+      model: User,
+      as: 'seller',
+      attributes: ['id', 'username']
+    }, {
+      model: Bid,
+      as: 'bids',
+      attributes: ['id', 'price'],
+      include: [{
+        model: User,
+        as: 'bidder',
+        attributes: ['id', 'username']
+      }]
+    }],
+    where: { id: productId }
+  })
+  if (product === null) {
+    res.status(404).send('Erreur : produit non trouvé')
+  } else {
+    res.status(200).send(product)
+  }
+})
 router.get('/api/products', async (req, res, next) => {
   const product = await Product.findAll({
     include: [{
@@ -44,31 +71,7 @@ router.get('/api/products/:userId', async (req, res, next) => {
     res.status(200).send(products)
   }
 })
-router.get('/api/products/:productId', async (req, res) => {
-  const productId = req.params.productId
-  const product = await Product.findOne({
-    include: [{
-      model: User,
-      as: 'seller',
-      attributes: ['id', 'username']
-    }, {
-      model: Bid,
-      as: 'bids',
-      attributes: ['id', 'price'],
-      include: [{
-        model: User,
-        as: 'bidder',
-        attributes: ['id', 'username']
-      }]
-    }],
-    where: { id: productId }
-  })
-  if (product === null) {
-    res.status(404).send('Erreur : produit non trouvé')
-  } else {
-    res.status(200).send(product)
-  }
-})
+
 
 // You can use the authMiddleware with req.user.id to authenticate your endpoint ;)
 
@@ -104,14 +107,15 @@ router.put('/api/products/:productId', authMiddleware, async (req, res) => {
     if (productToUpdate.sellerId !== req.user.id && !req.user.admin) {
       return res.status(403).json({ message: 'Action non autorisée' })
     }
-    productToUpdate.name = req.body.name
-    productToUpdate.description = req.body.description
-    productToUpdate.price = req.body.price
-    productToUpdate.category = req.body.category
-    productToUpdate.originalPrice = req.body.originalPrice
-    productToUpdate.pictureUrl = req.body.pictureUrl
-    productToUpdate.endDate = req.body.endDate
-    const updatedProduct = await productToUpdate.save()
+    const updatedProduct = await productToUpdate.update({
+      name: req.body.name,
+      description: req.body.description,
+      price: req.body.price,
+      category: req.body.category,
+      originalPrice: req.body.originalPrice,
+      pictureUrl: req.body.pictureUrl,
+      endDate: req.body.endDate
+    })
     res.status(200).json(updatedProduct)
   } catch (err) {
     res.status(403).json({ message: err.message })
