@@ -6,8 +6,6 @@ import product from "../orm/models/product.js";
 
 const router = express.Router()
 
-
-
 router.get('/api/products/:productId', async (req, res) => {
   const productId = req.params.productId
   const product = await Product.findOne({
@@ -18,7 +16,7 @@ router.get('/api/products/:productId', async (req, res) => {
     }, {
       model: Bid,
       as: 'bids',
-      attributes: ['id', 'price'],
+      attributes: ['id', 'price', 'date'],
       include: [{
         model: User,
         as: 'bidder',

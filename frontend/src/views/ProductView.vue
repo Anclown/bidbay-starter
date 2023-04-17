@@ -9,6 +9,50 @@ const route = useRoute();
 const router = useRouter();
 
 const productId = ref(route.params.productId);
+const loading = ref(false);
+const error = ref(false);
+const isOwner = ref(false);
+const product = ref({});
+
+async function fetchProduct() {
+  error.value = false;
+  loading.value = true;
+  try {
+    const res = await fetch(
+      `http://localhost:3000/api/products/${productId.value}`
+    );
+    product.value = await res.json();
+    if (isAuthenticated.value && userData.value.id === product.value.sellerId) {
+      isOwner.value = true;
+    }
+  } catch (e) {
+    error.value = true;
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function deleteProduct(productId) {
+  error.value = false;
+  loading.value = true;
+  try {
+    await fetch(`http://localhost:3000/api/products/${productId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token.value}`,
+      },
+    });
+    await router.push({
+      name: "Home",
+    });
+  } catch (e) {
+    error.value = true;
+  } finally {
+    loading.value = false;
+  }
+}
+
+fetchProduct();
 
 function formatDate(date) {
   const options = { year: "numeric", month: "long", day: "numeric" };
@@ -18,20 +62,26 @@ function formatDate(date) {
 
 <template>
   <div class="row">
-    <div class="text-center mt-4" data-test-loading>
+    <div class="text-center mt-4" data-test-loading v-if="loading && !error">
       <div class="spinner-border" role="status">
         <span class="visually-hidden">Chargement...</span>
       </div>
     </div>
 
-    <div class="alert alert-danger mt-4" role="alert" data-test-error>
+    <div
+      class="alert alert-danger mt-4"
+      role="alert"
+      data-test-error
+      v-if="error"
+    >
       Une erreur est survenue lors du chargement des produits.
     </div>
-    <div class="row" data-test-product>
+
+    <div class="row" data-test-product v-if="!loading && !error">
       <!-- Colonne de gauche : image et compte à rebours -->
       <div class="col-lg-4">
         <img
-          src="https://picsum.photos/id/250/512/512"
+          :src="product.pictureUrl"
           alt=""
           class="img-fluid rounded mb-3"
           data-test-product-picture
@@ -42,7 +92,7 @@ function formatDate(date) {
           </div>
           <div class="card-body">
             <h6 class="card-subtitle mb-2 text-muted" data-test-countdown>
-              Temps restant : {{ countdown }}
+              Temps restant : {{ (formatDate(product.endDate)>formatDate(Date.now()))?formatDate(product.endDate):'Terminé' }}
             </h6>
           </div>
         </div>
@@ -53,19 +103,24 @@ function formatDate(date) {
         <div class="row">
           <div class="col-lg-6">
             <h1 class="mb-3" data-test-product-name>
-              Appareil photo argentique
+              {{ product.name }}
             </h1>
           </div>
           <div class="col-lg-6 text-end">
             <RouterLink
-              :to="{ name: 'ProductEdition', params: { productId: 'TODO' } }"
+              :to="{ name: 'ProductEdition', params: { productId: productId } }"
               class="btn btn-primary"
               data-test-edit-product
             >
               Editer
             </RouterLink>
             &nbsp;
-            <button class="btn btn-danger" data-test-delete-product>
+            <button
+              class="btn btn-danger"
+              data-test-delete-product
+              v-if="isAdmin || isOwner"
+              @click.prevent="deleteProduct(product.id)"
+            >
               Supprimer
             </button>
           </div>
@@ -73,21 +128,24 @@ function formatDate(date) {
 
         <h2 class="mb-3">Description</h2>
         <p data-test-product-description>
-          Appareil photo argentique classique, parfait pour les amateurs de
-          photographie
+          {{ product.description }}
         </p>
 
         <h2 class="mb-3">Informations sur l'enchère</h2>
         <ul>
-          <li data-test-product-price>Prix de départ : 17 €</li>
-          <li data-test-product-end-date>Date de fin : 20 juin 2026</li>
+          <li data-test-product-price>
+            Prix de départ : {{ product.originalPrice }} €
+          </li>
+          <li data-test-product-end-date>
+            Date de fin : {{ formatDate(product.endDate) }}
+          </li>
           <li>
             Vendeur :
             <router-link
-              :to="{ name: 'User', params: { userId: 'TODO' } }"
+              :to="{ name: 'User', params: { userId: product.seller.id } }"
               data-test-product-seller
             >
-              alice
+              {{ product.seller.username }}
             </router-link>
           </li>
         </ul>
@@ -103,17 +161,17 @@ function formatDate(date) {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="i in 10" :key="i" data-test-bid>
+            <tr v-for="bid in product.bids" :key="bid" data-test-bid>
               <td>
                 <router-link
-                  :to="{ name: 'User', params: { userId: 'TODO' } }"
+                  :to="{ name: 'User', params: { userId: bid.bidder.id } }"
                   data-test-bid-bidder
                 >
-                  charly
+                  {{ bid.bidder.username }}
                 </router-link>
               </td>
-              <td data-test-bid-price>43 €</td>
-              <td data-test-bid-date>22 mars 2026</td>
+              <td data-test-bid-price>{{ bid.price }} €</td>
+              <td data-test-bid-date>{{ formatDate(bid.date) }}</td>
               <td>
                 <button class="btn btn-danger btn-sm" data-test-delete-bid>
                   Supprimer
@@ -122,7 +180,7 @@ function formatDate(date) {
             </tr>
           </tbody>
         </table>
-        <p data-test-no-bids>Aucune offre pour le moment</p>
+        <p data-test-no-bids v-if="product.bids.length === 0">Aucune offre pour le moment</p>
 
         <form data-test-bid-form>
           <div class="form-group">
