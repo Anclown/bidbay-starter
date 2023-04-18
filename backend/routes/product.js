@@ -77,13 +77,9 @@ router.post('/api/products', authMiddleware, async (req, res, next) => {
   try {
     const { name, description, category, originalPrice, pictureUrl, endDate } = req.body
     const sellerId = req.user.id
-
-    // Check if the required fields are present
     if (!name || !description || !category || !originalPrice || !pictureUrl || !endDate) {
       return res.status(400).json({ error: 'Invalid or missing fields', details: 'Missing required fields' })
     }
-
-    // Check if the original price is a valid number
     if (isNaN(originalPrice)) {
       return res.status(400).json({ error: 'Invalid or missing fields', details: 'Original price must be a number' })
     }
