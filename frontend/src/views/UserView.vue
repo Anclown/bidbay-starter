@@ -39,7 +39,7 @@ fectchUser();
 <template>
   <div>
     <h1 class="text-center" data-test-username>
-      Utilisateur {{ user.name ?? '' }}
+      {{user?.username?? '' }}
       <span class="badge rounded-pill bg-primary" data-test-admin v-if="isAdmin"> Admin </span>
     </h1>
     <div class="text-center" data-test-loading v-if="loading && !error">

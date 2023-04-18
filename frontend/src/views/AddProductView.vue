@@ -1,12 +1,12 @@
 <script setup>
-import {useAuthStore} from "../store/auth";
-import {useRouter} from "vue-router";
-import {ref} from "vue";
+import { useAuthStore } from "../store/auth";
+import { useRouter } from "vue-router";
+import { ref } from "vue";
 
-const {isAuthenticated, token} = useAuthStore();
+const { isAuthenticated, token } = useAuthStore();
 const router = useRouter();
 let errorMessage = ref("");
-let isSubmitting = ref(false);
+let spinner = ref(false);
 let productData = {
   name: "",
   description: "",
@@ -15,36 +15,33 @@ let productData = {
   pictureUrl: "",
   endDate: "",
 };
-async function submitForm() {
-  errorMessage.value = "";
-  isSubmitting.value = true;
 
+async function submitForm() {
+  errorMessage.value = false;
+  spinner.value = true;
   try {
-    const response = await fetch("http://localhost:3000/api/products/", {
+    const res = await fetch(`http://localhost:3000/api/products`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
       body: JSON.stringify(productData),
+      headers: {
+        Authorization: `Bearer ${token.value}`,
+        "Content-Type": "application/json",
+      },
     });
-    const data = await response.json();
-    console.log(data);
-    if (response.status === 201) {
-      router.push({ name: "Product", params: { productId: data.id } });
-    } else {
-      throw new Error("Unexpected response status");
-    }
-  } catch (error) {
-    console.error(error);
+    const product = await res.json();
+    await router.push({
+      name: "Product",
+      params: { productId: product.id },
+    });
+  } catch (e) {
+    errorMessage.value=true
   } finally {
-    isSubmitting.value = false;
+    spinner.value = false;
   }
 }
 if (!isAuthenticated.value) {
-  router.push({name: "Login"});
+  router.push({ name: "Login" });
 }
-// router.push({ name: "Product", params: { productId: 'TODO } });
 </script>
 
 <template>
@@ -53,18 +50,19 @@ if (!isAuthenticated.value) {
   <div class="row justify-content-center">
     <div class="col-md-6">
       <form @submit.prevent="submitForm">
-        <div v-if="errorMessage" class="alert alert-danger mt-4" role="alert">
-          {{ errorMessage }}
+        <div v-if="errorMessage" class="alert alert-danger mt-4" role="alert"  data-test-error>
+          Une erreur s'est produite
         </div>
 
         <div class="mb-3">
           <label for="product_name" class="form-label"> Nom du produit </label>
           <input
-              type="text"
-              class="form-control"
-              id="product_name"
-              required
-              data-test-product-name
+            type="text"
+            class="form-control"
+            id="product_name"
+            required
+            data-test-product-name
+            v-model="productData.name"
           />
         </div>
 
@@ -73,24 +71,25 @@ if (!isAuthenticated.value) {
             Description
           </label>
           <textarea
-              class="form-control"
-              id="product-description"
-              name="description"
-              rows="3"
-              required
-              data-test-product-description
+            class="form-control"
+            id="product-description"
+            name="description"
+            rows="3"
+            required
+            data-test-product-description
+            v-model="productData.description"
           ></textarea>
         </div>
 
         <div class="mb-3">
           <label for="product-category" class="form-label"> Catégorie </label>
           <input
-              type="text"
-              class="form-control"
-              id="product-name"
-              required
-              v-model="productName"
-              data-test-product-name
+            type="text"
+            class="form-control"
+            id="product-name"
+            required
+            v-model="productData.category"
+            data-test-product-category
           />
         </div>
 
@@ -100,14 +99,15 @@ if (!isAuthenticated.value) {
           </label>
           <div class="input-group">
             <input
-                type="number"
-                class="form-control"
-                id="product-original-price"
-                name="originalPrice"
-                step="1"
-                min="0"
-                required
-                data-test-product-price
+              type="number"
+              class="form-control"
+              id="product-original-price"
+              name="originalPrice"
+              step="1"
+              min="0"
+              required
+              data-test-product-price
+              v-model="productData.originalPrice"
             />
             <span class="input-group-text">€</span>
           </div>
@@ -118,12 +118,13 @@ if (!isAuthenticated.value) {
             URL de l'image
           </label>
           <input
-              type="url"
-              class="form-control"
-              id="product-picture-url"
-              name="pictureUrl"
-              required
-              data-test-product-picture
+            type="url"
+            class="form-control"
+            id="product-picture-url"
+            name="pictureUrl"
+            required
+            data-test-product-picture
+            v-model="productData.pictureUrl"
           />
         </div>
 
@@ -132,23 +133,28 @@ if (!isAuthenticated.value) {
             Date de fin de l'enchère
           </label>
           <input
-              type="date"
-              class="form-control"
-              id="product-end-date"
-              name="endDate"
-              required
-              data-test-product-end-date
+            type="date"
+            class="form-control"
+            id="product-end-date"
+            name="endDate"
+            required
+            data-test-product-end-date
+            v-model="productData.endDate"
           />
         </div>
 
         <div class="d-grid gap-2">
-          <button
-              type="submit"
-              class="btn btn-primary"
-              data-test-submit
-          >
+          <button type="submit" class="btn btn-primary" data-test-submit :disabled="spinner">
             Ajouter le produit
+            <span
+                data-test-spinner
+                class="spinner-border spinner-border-sm"
+                role="status"
+                aria-hidden="true"
+                v-if="spinner"
+            ></span>
           </button>
+
         </div>
       </form>
     </div>

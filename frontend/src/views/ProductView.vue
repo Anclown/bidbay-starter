@@ -13,6 +13,7 @@ const loading = ref(false);
 const error = ref(false);
 const isOwner = ref(false);
 const product = ref({});
+const price = ref(0);
 
 async function fetchProduct() {
   error.value = false;
@@ -22,6 +23,10 @@ async function fetchProduct() {
       `http://localhost:3000/api/products/${productId.value}`
     );
     product.value = await res.json();
+    const lastBid = getLastBid.value;
+    if (lastBid) {
+      price.value = lastBid.price + 1;
+    }
     if (isAuthenticated.value && userData.value.id === product.value.sellerId) {
       isOwner.value = true;
     }
@@ -54,10 +59,70 @@ async function deleteProduct(productId) {
 
 fetchProduct();
 
+async function deleteBid(bidId) {
+  error.value = false;
+  loading.value = true;
+  try {
+    await fetch(`http://localhost:3000/api/bids/${bidId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token.value}`,
+      },
+    });
+    fetchProduct();
+  } catch (e) {
+    error.value = true;
+  } finally {
+    loading.value = false;
+  }
+}
 function formatDate(date) {
   const options = { year: "numeric", month: "long", day: "numeric" };
   return new Date(date).toLocaleDateString("fr-FR", options);
 }
+
+const disabledButtonAddBid = computed(() => {
+  const maxPrice = getLastBid.value?.price ?? 10;
+  return price.value < maxPrice;
+});
+const getLastBid = computed(() => {
+  if (product.value.bids.length > 0) {
+    return product.value.bids.slice(-1)[0] ?? null;
+  }
+  return null;
+});
+function getTimeDifference(endDate) {
+  const endDateObj = new Date(endDate);
+  const currentDateObj = new Date();
+
+  const differenceInMs = endDateObj - currentDateObj;
+  const days = Math.floor(differenceInMs / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((differenceInMs / (1000 * 60 * 60)) % 24);
+  const minutes = Math.floor((differenceInMs / (1000 * 60)) % 60);
+
+  return `${days}j ${hours}h ${minutes}min`;
+}
+
+async function addBid() {
+  try {
+    const res = await fetch(
+      `http://localhost:3000/api/products/${productId.value}/bids`,
+      {
+        method: "POST",
+        body: JSON.stringify({ price: price.value }),
+        headers: {
+          Authorization: `Bearer ${token.value}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+  fetchProduct();
+  } catch (e) {
+    error.value = true;
+  }
+}
+
+
 </script>
 
 <template>
@@ -92,7 +157,11 @@ function formatDate(date) {
           </div>
           <div class="card-body">
             <h6 class="card-subtitle mb-2 text-muted" data-test-countdown>
-              Temps restant : {{ (formatDate(product.endDate)>formatDate(Date.now()))?formatDate(product.endDate):'Terminé' }}
+              Temps restant :{{
+                formatDate(product.endDate) > formatDate(Date.now())
+                  ? getTimeDifference(product.endDate)
+                  : "Terminé"
+              }}
             </h6>
           </div>
         </div>
@@ -106,7 +175,7 @@ function formatDate(date) {
               {{ product.name }}
             </h1>
           </div>
-          <div class="col-lg-6 text-end">
+          <div class="col-lg-6 text-end" v-if="isAdmin || isOwner">
             <RouterLink
               :to="{ name: 'ProductEdition', params: { productId: productId } }"
               class="btn btn-primary"
@@ -118,7 +187,6 @@ function formatDate(date) {
             <button
               class="btn btn-danger"
               data-test-delete-product
-              v-if="isAdmin || isOwner"
               @click.prevent="deleteProduct(product.id)"
             >
               Supprimer
@@ -173,16 +241,26 @@ function formatDate(date) {
               <td data-test-bid-price>{{ bid.price }} €</td>
               <td data-test-bid-date>{{ formatDate(bid.date) }}</td>
               <td>
-                <button class="btn btn-danger btn-sm" data-test-delete-bid>
+                <button
+                  class="btn btn-danger btn-sm"
+                  data-test-delete-bid
+                  v-if="
+                    isAdmin ||
+                    (isAuthenticated && userData.id === bid.bidder.id)
+                  "
+                  @click="deleteBid(bid.id)"
+                >
                   Supprimer
                 </button>
               </td>
             </tr>
           </tbody>
         </table>
-        <p data-test-no-bids v-if="product.bids.length === 0">Aucune offre pour le moment</p>
+        <p data-test-no-bids v-if="product.bids.length === 0">
+          Aucune offre pour le moment
+        </p>
 
-        <form data-test-bid-form>
+        <form data-test-bid-form @submit.prevent="addBid">
           <div class="form-group">
             <label for="bidAmount">Votre offre :</label>
             <input
@@ -190,6 +268,7 @@ function formatDate(date) {
               class="form-control"
               id="bidAmount"
               data-test-bid-form-price
+              v-model="price"
             />
             <small class="form-text text-muted">
               Le montant doit être supérieur à 10 €.
@@ -198,7 +277,7 @@ function formatDate(date) {
           <button
             type="submit"
             class="btn btn-primary"
-            disabled
+            :disabled="disabledButtonAddBid"
             data-test-submit-bid
           >
             Enchérir

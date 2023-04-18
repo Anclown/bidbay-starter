@@ -177,7 +177,7 @@ describe("Page /", () => {
     // Note : Test la présence d'un message d'erreur en cas d'échec au chargement
 
     cy.intercept("http://localhost:3000/api/products", {
-      status: 500,
+      statusCode: 500,
       response: {},
     });
 
